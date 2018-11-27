@@ -24,8 +24,9 @@ def yield_trend(df, order=1):
     return trend_results
 
 # Train the model, specify gs months 
-def train_model(m,crop='potatoes'):    
-    model_txt = "Q('yield_ana') ~ " + predictor_constructor('tmax_p',1,m,'poly') + predictor_constructor('tmin_p',1,m,'poly')
+def train_model(m,form='poly',crop='potatoes'):    
+    model_txt = "Q('yield_ana') ~ " + predictor_constructor('tmax_p',1,m,form) + predictor_constructor('tmin_p',1,m,form)
+#    model_txt = "Q('yield_ana') ~ " + predictor_constructor('tmax_p',1,m,form)
     
     # Load data
     d_model = pd.read_csv('../data/%s_model_data_2016_update.csv'%crop,dtype={'FIPS':str})
@@ -54,10 +55,10 @@ def get_yield_prediction(crop='potatoes',name='historical'):
         
     return pd.concat([d4,d5,d6])[simple_col].sort_values(by='year').dropna().reset_index(drop=True)    
     
-   # correct the year issue for future, 2069-2099
-    if name!='historical':
-        c = (d['year']>=1969)&(d['year']<=1999)
-        d.loc[c,'year'] = d.loc[c,'year'] + 100
+#   # correct the year issue for future, 2069-2099
+#    if name!='historical':
+#        c = (d['year']>=1969)&(d['year']<=1999)
+#        d.loc[c,'year'] = d.loc[c,'year'] + 100
         
     return d[simple_col].sort_values(by='year').dropna().reset_index(drop=True)
 
@@ -104,12 +105,52 @@ def save_prediction_result(crop='potatoes'):
     for f in names:
        # Without adaptation
         y = get_prediction_result(crop=crop,name=f)
-        y.to_csv('../data/result/%s_yield_prediction_%s.csv'%(crop,f),index=False)
+        y.sort_values(by=['State','County','year'])\
+            .to_csv('../data/result/%s_yield_prediction_%s.csv'%(crop,f),index=False)
 
        # With adaptation
         y = get_prediction_result(crop=crop,name=f+'_adaptation')
-        y.to_csv('../data/result/%s_yield_prediction_%s.csv'%(crop,f+'_adaptation'),index=False)
+        y.sort_values(by=['State','County','year'])\
+            .to_csv('../data/result/%s_yield_prediction_%s.csv'%(crop,f+'_adaptation'),index=False)
         print('%s_yield_prediction_%s.csv saved'%(crop,f))
+
+# Load the final prediction results
+def load_prediction_result(name,crop='potatoes'):
+    t = pd.read_csv('../data/result/%s_yield_prediction_%s.csv'%(crop,name))
+    return t
+
+# Save the predicition results to the template excel format (need to mannual copy)
+def save_excel_format():
+    # Without Adaptation 
+    d1 = load_prediction_result('GFDL-ESM2M').set_index(['State','County','year'])
+    d2 = load_prediction_result('HadGEM2-ES').set_index(['State','County','year'])
+    d3 = load_prediction_result('IPSL-CM5A-LR').set_index(['State','County','year'])
+    d4 = load_prediction_result('MIROC-ESM-CHEM').set_index(['State','County','year'])
+    d5 = load_prediction_result('NorESM1-M').set_index(['State','County','year'])
+
+    d = pd.concat([d1, d2,d3,d4,d5], axis=1, 
+              keys=['GFDL-ESM2M', 'HadGEM2-ES', 'IPSL-CM5A-LR', 'MIROC-ESM-CHEM', 'NorESM1-M'])
+
+    d.loc[(slice(None),slice(None),slice(2021,2050)),(slice(None),'yield_predicted')].to_csv('../data/result/block_2030s_noada_noco2.csv')
+    d.loc[(slice(None),slice(None),slice(2041,2070)),(slice(None),'yield_predicted')].to_csv('../data/result/block_2050s_noada_noco2.csv')
+
+    d.loc[(slice(None),slice(None),slice(2021,2050)),(slice(None),'yield_predicted_withco2')].to_csv('../data/result/block_2030s_noada_co2.csv')
+    d.loc[(slice(None),slice(None),slice(2041,2070)),(slice(None),'yield_predicted_withco2')].to_csv('../data/result/block_2050s_noada_co2.csv')
+    
+    # With Adaptation 
+    d1a = load_prediction_result('GFDL-ESM2M_adaptation').set_index(['State','County','year'])
+    d2a = load_prediction_result('HadGEM2-ES_adaptation').set_index(['State','County','year'])
+    d3a = load_prediction_result('IPSL-CM5A-LR_adaptation').set_index(['State','County','year'])
+    d4a = load_prediction_result('MIROC-ESM-CHEM_adaptation').set_index(['State','County','year'])
+    d5a = load_prediction_result('NorESM1-M_adaptation').set_index(['State','County','year'])
+
+    da = pd.concat([d1a, d2a,d3a,d4a,d5a], axis=1, 
+              keys=['GFDL-ESM2M', 'HadGEM2-ES', 'IPSL-CM5A-LR', 'MIROC-ESM-CHEM', 'NorESM1-M'])
+
+    da.loc[(slice(None),slice(None),slice(2021,2050)),(slice(None),'yield_predicted_withco2')].to_csv('../data/result/block_2030s_ada_co2.csv')
+    da.loc[(slice(None),slice(None),slice(2041,2070)),(slice(None),'yield_predicted_withco2')].to_csv('../data/result/block_2050s_ada_co2.csv')
+    print('All excel blocks saved')        
 
 if __name__ == "__main__":
     save_prediction_result()
+#    save_excel_format()
