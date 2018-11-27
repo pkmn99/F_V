@@ -1,16 +1,14 @@
 import pandas as pd
 import numpy as np
-from combine_crop_model_data_FV import extract_climate_state
 # This file contains functions to process the dssat climate data for F_V model purpose
 
-
 # Get the basic infomration of the 32 counties, name, location, plant/harves dates
-def get_county_information():
+def get_county_information(crop='potatoes'):
     # Load geographical information and location
     d_link = pd.read_csv('../data/latlon_county_link.csv')
 
     # Load plant/harvest date
-    d_gs = pd.read_csv('../data/potatoes_protocol.csv')
+    d_gs = pd.read_csv('../data/%s_protocol.csv'%crop)
 
     # function to convery doy to month
     month_converter = lambda x: pd.datetime.strptime(str(x), '%j').month
@@ -105,11 +103,11 @@ def convert_to_gs_monthly(df_mon,name_input, name_output):
 def extract_climate_county(df_all, df_county, county_name,adaptation):
     c = df_all['location'] == df_county.loc[county_name,'location']
     if adaptation:
-        M_range = range(int(df_county.loc[county_name, 'plant_month']),
-                int(df_county.loc[county_name, 'harvest_month']+1))
-    else:
         M_range = range(int(df_county.loc[county_name, 'plant_month']-1),
              int(df_county.loc[county_name, 'harvest_month']))
+    else:
+        M_range = range(int(df_county.loc[county_name, 'plant_month']),
+                int(df_county.loc[county_name, 'harvest_month']+1))
 
     v1 = ['tmax' + str(m) for m in M_range]
     v2 = ['tmin' + str(m) for m in M_range]
@@ -135,7 +133,7 @@ def save_monthly_climate_model_12mon(period='historical'):
 # Save monthly climate variable during the growing season for counties with specific gs month length(4,5,6)
 def save_monthly_climate_model_gs(m,crop='potatoes',period='historical',adaptation=False):
     # State specific plant and harvest month
-    d_county = get_county_information()
+    d_county = get_county_information(crop=crop)
 
     # Read 12mon model data and merge with county
     d = pd.read_csv('../data/Weather/monthly_climate_%s_model_12mon.csv'%period)
@@ -146,12 +144,9 @@ def save_monthly_climate_model_gs(m,crop='potatoes',period='historical',adaptati
     d.loc[:,'tmin0'] = np.nan
     d.loc[:,'vpdmax0'] = np.nan
     d.loc[:,'vpdmin0'] = np.nan
-    if period != 'historical':
-#         # make the var0 for adaptation
-#         c12 = (d['year']>=1980)&(d['year']<=2015)
-#         c0 = (d['year']>=1981)&(d['year']<=2016)
 
     # correct the year issue for future, 2069-2099
+    if period != 'historical':
         c = (d['year']>=1969)&(d['year']<=1999)
         d.loc[c,'year'] = d.loc[c,'year'] + 100
 
@@ -198,19 +193,18 @@ def save_climate_gs_model(p):
         f = ['historical']
     else:
         f = ['GFDL-ESM2M', 'HadGEM2-ES', 'IPSL-CM5A-LR', 'MIROC-ESM-CHEM', 'NorESM1-M']
-
+# only need to run once 
 #    for p in f:
 #        save_monthly_climate(period=p)
 #        save_monthly_climate_model_12mon(period=p)
     
     # process different growing season months and with/without adaptation
     for p in f:
-        for m in range(4,7):
+        for m in range(4,7): # models with 4,5,6 months
             save_monthly_climate_model_gs(m,period=p)
             save_monthly_climate_model_gs(m,period=p,adaptation=True)
             print('%s for month %d saved'%(p,m))
 
-
 if __name__ == "__main__":
-#    save_climate_gs_model('historical')
+    save_climate_gs_model('historical')
     save_climate_gs_model('future')
