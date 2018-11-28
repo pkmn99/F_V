@@ -69,29 +69,33 @@ def extract_climate_state(df_all, df_st_month, st_name, data='prism'):
         v0 = ['year','location','State']
     return df_all.loc[c,v0+v1+v2+v3+v4].values
 
-def save_update_climate_yield_data():
-    df = pd.read_csv('../data/potatoes_model_data_2016.csv', dtype={'FIPS':str}) 
-    df_st_month = pd.read_csv('../data/potatoes_plant_harvest_dates.csv', index_col=0) #.set_index('State')
+def save_update_climate_yield_data(crop='potatoes'):
+    fname={'potatoes':'potatoes_model_data_2016',
+           'tomatoes':'tomatoes_model_data_2017'}
+    df = pd.read_csv('../data/%s.csv'%fname[crop], dtype={'FIPS':str}) 
+    df_st_month = pd.read_csv('../data/%s_plant_harvest_dates.csv'%crop, index_col=0) #.set_index('State')
 
     v1 = ['tmax_p' + str(m) for m in range(1,7)] 
     v2 = ['tmin_p' + str(m) for m in range(1,7)] 
     v3 = ['vpdmax_p' + str(m) for m in range(1,7)] 
     v4 = ['precip_p' + str(m) for m in range(1,7)] 
     v0 = ['year','FIPS','County','State','yield']
-    d_model = pd.DataFrame(np.zeros([5180,5+24]), columns=v0+v1+v2+v3+v4)
+    d_model = pd.DataFrame(np.zeros([df.shape[0],5+24]), columns=v0+v1+v2+v3+v4)
 
     frame = [extract_climate_state(df, df_st_month, s) for s in df_st_month.index.values]
     a3=np.concatenate(frame, axis=0)
     d_model.iloc[:,:] = a3
 
-    # Correct the Oregon high value error 
-    c = d_model['yield']>2000
-    d_model.loc[c,'yield'] = d_model.loc[c,'yield'] /10
-    d_model.to_csv('../data/potatoes_model_data_2016_update.csv',index=False)
-    print('updated yield data saved')
+    # Correct the Oregon high value error for potatoes
+    if crop == 'potatoes':
+        c = d_model['yield']>2000
+        d_model.loc[c,'yield'] = d_model.loc[c,'yield'] /10
+
+    d_model.to_csv('../data/%s_model_data_update.csv'%crop,index=False)
+    print('updated yield data %s saved'%crop)
 
 if __name__ == "__main__":
 #    combine_and_save_data(crop_type='sweetcorn')
 #    combine_and_save_data(crop_type='potatoes')
 #    combine_and_save_data(crop_type='tomatoes')
-    save_update_climate_yield_data()
+    save_update_climate_yield_data(crop='tomatoes')
