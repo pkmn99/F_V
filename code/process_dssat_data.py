@@ -13,12 +13,18 @@ def get_county_information(crop='potatoes'):
     # function to convery doy to month
     month_converter = lambda x: pd.datetime.strptime(str(x), '%j').month
     day_converter = lambda x: pd.datetime.strptime(str(x), '%j').day
+    if crop == 'potatoes':
+        d_gs['plant_month'] = d_gs['Baseline'].apply(month_converter)
+        d_gs['plant_day'] = d_gs['Baseline'].apply(day_converter)
 
-    d_gs['plant_month'] = d_gs['Baseline'].apply(month_converter)
-    d_gs['plant_day'] = d_gs['Baseline'].apply(day_converter)
+        d_gs['harvest_month'] = (d_gs['Baseline']+d_gs['Season Length']).apply(month_converter)
+        d_gs['harvest_day'] = (d_gs['Baseline']+d_gs['Season Length']).apply(day_converter)
+    if crop == 'tomatoes':
+        d_gs['plant_month'] = d_gs['sow.date'].apply(month_converter)
+        d_gs['plant_day'] = d_gs['sow.date'].apply(day_converter)
 
-    d_gs['harvest_month'] = (d_gs['Baseline']+d_gs['Season Length']).apply(month_converter)
-    d_gs['harvest_day'] = (d_gs['Baseline']+d_gs['Season Length']).apply(day_converter)
+        d_gs['harvest_month'] = d_gs['harvest.date'].apply(month_converter)
+        d_gs['harvest_day'] = d_gs['harvest.date'].apply(day_converter)
 
     d_gs['gs_month'] = d_gs['harvest_month'] - d_gs['plant_month'] + 1
 
@@ -188,7 +194,7 @@ def save_monthly_climate_model_gs(m,crop='potatoes',period='historical',adaptati
 
 # Save growing season monthly climate variable of histroical and future for model prediction
 # Final data
-def save_climate_gs_model(p):
+def save_climate_gs_model(p,crop='potatoes'):
     if p == 'historical':
         f = ['historical']
     else:
@@ -201,10 +207,10 @@ def save_climate_gs_model(p):
     # process different growing season months and with/without adaptation
     for p in f:
         for m in range(4,7): # models with 4,5,6 months
-            save_monthly_climate_model_gs(m,period=p)
-            save_monthly_climate_model_gs(m,period=p,adaptation=True)
-            print('%s for month %d saved'%(p,m))
+            save_monthly_climate_model_gs(m,crop=crop,period=p)
+            save_monthly_climate_model_gs(m,crop=crop,period=p,adaptation=True)
+            print('%s for month %d %s saved'%(p,m,crop))
 
 if __name__ == "__main__":
-    save_climate_gs_model('historical')
-    save_climate_gs_model('future')
+    save_climate_gs_model('historical',crop='tomatoes')
+    save_climate_gs_model('future',crop='tomatoes')
