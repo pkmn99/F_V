@@ -82,28 +82,24 @@ def get_yield_baseline(crop='potatoes'):
           .merge(llc,on='County').rename(columns={'Baseline Yield (t/ha)':'yield_base'})
 
 # Calculate the co2 effect on potatoes yield
-def get_co2_effect(crop='potatoes'): # the output should be ton/ha dry matter
-    co2 = pd.read_csv('../data/co2_1981-2070.csv')
+# Use the relative change method and unit does not matter
+def get_co2_effect(yy,crop='potatoes'): # the output should be ton/ha dry matter
     if crop == 'potatoes':
         co2_func = lambda x: 83.5 + 0.275 * x # g/plant equation from literature
-        # cwt hundred pound
-        yield_unit_func = lambda x: x * 0.15 # assume 15 plant per m2
     if crop == 'tomatoes':
-        co2_func = lambda x: 0.265 * x # equation from literature, ton/ha
-        yield_unit_func = lambda x: x * 0.06 # convert to dry matter t/ha, 94% moisture
-    # CO2 basline is 360 ppm for non-co2     
-    co2['co2_yield_effect'] = yield_unit_func(co2_func(co2['co2']) - co2_func(360)) 
-    return co2
+        co2_func = lambda x: 19.15 + 0.0257 * x # equation from literature, ton/ha
+    return (co2_func(yy['co2']) - co2_func(360))/co2_func(360)*yy['yield_predicted']
+
 
 # Use stat model to predict historical and future yield
 def get_prediction_result(crop='potatoes',name='historical'):
+    co2 = pd.read_csv('../data/co2_1981-2070.csv')
     y_baseline = get_yield_baseline(crop=crop)
     d = get_yield_prediction(crop=crop, name=name)
-    co2 = get_co2_effect(crop=crop)
     y = y_baseline.merge(d, on='location').merge(co2,on='year')
-    y.loc[:,'yield_predicted_withco2'] = y.loc[:,'yield_base'] + y.loc[:,'yield_ana_predicted'] + y.loc[:,'co2_yield_effect']
     y.loc[:,'yield_predicted'] = y.loc[:,'yield_base'] + y.loc[:,'yield_ana_predicted']
-    return y       
+    y.loc[:,'yield_predicted_withco2'] = y.loc[:,'yield_predicted'] + get_co2_effect(y,crop=crop)
+    return y.drop(['co2'],axis=1)       
 
 # Batch save the prediction results 
 def save_prediction_result(crop='potatoes'):
@@ -155,9 +151,10 @@ def save_excel_format(crop='potatoes'):
 
     da.loc[(slice(None),slice(None),slice(2021,2050)),(slice(None),'yield_predicted_withco2')].to_csv('../data/result/block_2030s_ada_co2.csv')
     da.loc[(slice(None),slice(None),slice(2041,2070)),(slice(None),'yield_predicted_withco2')].to_csv('../data/result/block_2050s_ada_co2.csv')
-    print('All excel blocks saved')        
+    print('All excel blocks saved for %s'%crop)        
 
 if __name__ == "__main__":
 #    save_prediction_result(crop='tomatoes')
 #    save_prediction_result(crop='potatoes')
-    save_excel_format(crop='tomatoes')
+#    save_excel_format(crop='tomatoes')
+    save_excel_format(crop='potatoes')
